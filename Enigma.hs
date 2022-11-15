@@ -36,6 +36,9 @@ module Enigma where
   getMappedLetter :: Rotor -> Int -> Char
   getMappedLetter rotor position = fst(rotor) !! position
 
+{- updateOffsets takes the current offsets and both of the middle and right rotors (to check knock ons), 
+  -it then returns the updated offsets based on which ones need to have been knocked on.
+-}
   updateOffsets :: Offsets -> Rotor -> Rotor -> Offsets
   updateOffsets (ol, om, or) middleRotor rightRotor 
     | or `mod` 26 == snd(rightRotor) = case() of --middle rotor needs to be updated
@@ -43,19 +46,42 @@ module Enigma where
          | otherwise -> (mod26 (ol), mod26 (om+1), mod26 (or+1)) --right rotor need not be updated
     | otherwise = (mod26 ol, mod26 om, mod26(or+1)) -- only the right rotor needs to 
 
-
+{- offsetCharPos takes a character, the current offsets, and the middle/right rotors and returns the position
+  - where the offsetted letter is in the alphabet
+-}
   offsetCharPos :: Char -> Offsets -> Rotor -> Rotor -> Int
-  offsetCharPos char offsets rm rr = alphaPos (offsetChar char foobar)
+  offsetCharPos char offsets rm rr = alphaPos (offsetChar char rightmostOffset)
     where
-      foobar = thd (updateOffsets offsets rm rr)
+      rightmostOffset = thd (updateOffsets offsets rm rr)
 
-  encodeChar :: Char -> Offsets -> Rotor -> Rotor -> Rotor -> Char
-  encodeChar char offsets rl rm rr = getMappedLetter rl (alphaPos (getMappedLetter rm (alphaPos (getMappedLetter rr (offsetCharPos char offsets rm rr))))) -- gets offset of right rotor, offsets char by that amount, passes through rotor
-    -- where
-    --   offsetCharacter = offsetChar char offset
-    --   offsetCharacterPos = alphaPos offsetCharacter
-    --   offset = thd (updateOffsets offsets rm rr)
-          
+{- encodeCharGoingLeft takes a character, current offsets, all 3 rotors, and returns a char based on it going through all of
+ - the rotors one time.
+-}
+  encodeCharGoingLeft :: Char -> Offsets -> Rotor -> Rotor -> Rotor -> Char
+  encodeCharGoingLeft char offsets rl rm rr = getMappedLetter rl (alphaPos (getMappedLetter rm (alphaPos (getMappedLetter rr (offsetCharPos char offsets rm rr))))) -- gets offset of right rotor, offsets char by that amount, passes through rotor
+
+{- encodeChar is my updated function for encoding characters, it takes a character and an array of the rotors and their given offsets
+ - to recurse through and return the encoded character
+-}
+  encodeChar :: Char -> [(Rotor, Int)] -> Char
+  encodeChar char [] = '?'
+  encodeChar char ((rotor, offset) : xs)
+    | xs == [] = getMappedLetter rotor (alphaPos (offsetChar char offset))
+    | otherwise = encodeChar (encodeChar char xs) [(rotor, offset)]
+
+{- reflectChar takes a character and a reflector and returns the characters reflected partner-}
+  reflectChar :: Char -> Reflector -> Char
+  reflectChar char [] = '?'
+  reflectChar char ((first, second):xs) 
+    | first == char = second
+    | second == char = first
+    | otherwise = reflectChar char xs
+    
+  encodeCharGoingRight :: Char -> Offsets -> Rotor -> Rotor -> Rotor -> Char
+  encodeCharGoingRight char offsets rl rm rr = getMappedLetter rr (alphaPos (getMappedLetter rm (alphaPos (getMappedLetter rl (offsetCharPos char negOffsets rm rr)))))
+    where negOffsets = reverseOffsets offsets
+
+    
 
 {- Part 2: Finding the Longest Menu -}
 
@@ -118,3 +144,6 @@ module Enigma where
 
   thd :: (Int, Int, Int) -> Int
   thd (a, b, c) = c
+
+  reverseOffsets :: Offsets -> Offsets
+  reverseOffsets (a, b, c) = (a * (-1), b * (-1), c * (-1))
