@@ -6,6 +6,7 @@
 module Enigma where
   import Data.Char  -- to use functions on characters
   import Data.Maybe -- breakEnigma uses Maybe type
+  import Data.List
   -- add extra imports if needed, but only standard library functions!
 
 {- Part 1: Simulation of the Enigma -}
@@ -32,9 +33,20 @@ module Enigma where
   offsetChar :: Char -> Int -> Char
   offsetChar char offset = int2let (((alphaPos char) + offset) `mod` 26)
 
+  offsetCharOnRotor :: Char -> Int -> Rotor -> Char
+  offsetCharOnRotor char offset rotor = getMappedLetter rotor (mod ((getLetterFromPos (fst rotor) char) - offset) 26)
+
 {- getMappedLetter takes a rotor and returns the letter at the given position in the rotor sequence -}
   getMappedLetter :: Rotor -> Int -> Char
   getMappedLetter rotor position = fst(rotor) !! position
+
+{- takes a string(rotor sequence), a character to search for in that rotor sequence,
+  - returns the index of the given char in the sequence
+  -}
+  getLetterFromPos :: String -> Char -> Int
+  getLetterFromPos rotorSequence charSearch = case elemIndex charSearch rotorSequence of
+    Just n -> n
+    Nothing -> (-1)
 
 {- updateOffsets takes the current offsets and both of the middle and right rotors (to check knock ons), 
   -it then returns the updated offsets based on which ones need to have been knocked on.
@@ -69,6 +81,14 @@ module Enigma where
     | xs == [] = getMappedLetter rotor (alphaPos (offsetChar char offset))
     | otherwise = encodeChar (encodeChar char xs) [(rotor, offset)]
 
+  encodeCharReverse :: Char -> [(Rotor, Int)] -> Char
+  encodeCharReverse char [] = '?'
+  encodeCharReverse char ((rotor, offset) : xs) --given the character to encode and the rotor+accompanying offset on which to do it
+    | xs == [] = foobar --once has reached end of rotor array (3rd rotor) get whichever letter is mapped to offset char on the given rotor 
+    | otherwise = encodeCharReverse (encodeCharReverse char xs) [(rotor, offset)]
+      where 
+        foobar = int2let (getLetterFromPos (fst(rotor)) (offsetCharOnRotor char offset rotor))
+
 {- reflectChar takes a character and a reflector and returns the characters reflected partner-}
   reflectChar :: Char -> Reflector -> Char
   reflectChar char [] = '?'
@@ -77,9 +97,16 @@ module Enigma where
     | second == char = first
     | otherwise = reflectChar char xs
     
-  encodeCharGoingRight :: Char -> Offsets -> Rotor -> Rotor -> Rotor -> Char
-  encodeCharGoingRight char offsets rl rm rr = getMappedLetter rr (alphaPos (getMappedLetter rm (alphaPos (getMappedLetter rl (offsetCharPos char negOffsets rm rr)))))
-    where negOffsets = reverseOffsets offsets
+  encodeString :: String -> Offsets -> (Rotor, Rotor, Rotor) -> String
+  encodeString "" _ _ = "jkojk"
+  encodeString (x : xs) (oL, oM, oR) (rotorL, rotorM, rotorR)
+    | xs == "" = [charEncodedFinal]
+    | otherwise = charEncodedFinal : (encodeString xs updatedOffsets (rotorL, rotorM, rotorR))
+      where
+        reflectedChar = reflectChar (encodeChar x [(rotorL, oL), (rotorM, oM), (rotorR, oR)]) reflectorB --char encoded l->r and the reflected
+        charEncodedFinal = encodeCharReverse rROeflectedChar [(rotorR, oR), (rotorM, oM), (rotorL, oL)]
+        updatedOffsets = updateOffsets (oL, oM, oR) rotorM rotorR
+
 
     
 
