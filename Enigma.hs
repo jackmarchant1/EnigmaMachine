@@ -11,16 +11,34 @@ module Enigma where
 
 {- Part 1: Simulation of the Enigma -}
 
-  type Rotor = (String, Int) -- the supplied type is not correct; fix it!
-  type Reflector = [(Char, Char)] -- the supplied type is not correct; fix it!
-  type Offsets = (Int, Int, Int) -- the supplied type is not correct; fix it!
-  type Stecker = [(Char, Char)] -- the supplied type is not correct; fix it!
+  type Rotor = (String, Int)
+  type Reflector = [(Char, Char)]
+  type Offsets = (Int, Int, Int)
+  type Stecker = [(Char, Char)]
   
   data Enigma = SimpleEnigma Rotor Rotor Rotor Reflector Offsets
                 | SteckeredEnigma Rotor Rotor Rotor Reflector Offsets Stecker
 
   encodeMessage :: String -> Enigma -> String
-  encodeMessage _ _ = "" -- you need to complete this!
+  encodeMessage "" _ = "" -- you need to complete this!
+  --Unsteckered
+  encodeMessage (x : xs) (SimpleEnigma rotorL rotorM rotorR reflector (oL, oM, oR)) --recurse through chars in string
+    | xs == "" = [charEncodedFinal] -- when char is last in string, return just the encoded char
+    | otherwise = charEncodedFinal : (encodeMessage xs (SimpleEnigma rotorL rotorM rotorR reflector (uOL, uOM, uOR))) --append encoded chars to return string
+      where
+        reflectedChar = reflectChar (encodeChar x [(rotorL, uOL), (rotorM, uOM), (rotorR, uOR)]) reflector --char encoded l->r and the reflected
+        charEncodedFinal = encodeCharReverse reflectedChar [(rotorR, uOR), (rotorM, uOM), (rotorL, uOL)]
+        (uOL, uOM, uOR) = updateOffsets (oL, oM, oR) rotorM rotorR
+  --Steckered
+  encodeMessage (x : xs) (SteckeredEnigma rotorL rotorM rotorR reflector (oL, oM, oR) stecker)
+    | xs == "" = [charEncodedFinal]-- when char is last in string, return just the encoded char
+    | otherwise = charEncodedFinal : (encodeMessage xs (SimpleEnigma rotorL rotorM rotorR reflector (uOL, uOM, uOR))) --append encoded chars to return string
+      where
+        steckeredChar = steckerChar x stecker
+        reflectedChar = reflectChar (encodeChar steckeredChar [(rotorL, uOL), (rotorM, uOM), (rotorR, uOR)]) reflector --char encoded l->r and the reflected
+        charEncodedFinal = steckerChar (encodeCharReverse reflectedChar [(rotorR, uOR), (rotorM, uOM), (rotorL, uOL)]) stecker
+        (uOL, uOM, uOR) = updateOffsets (oL, oM, oR) rotorM rotorR
+
 
 {- You will need to add many more functions. Remember, design it carefully
    - and keep it simple! If things are feeling complicated, step back from your
@@ -55,14 +73,6 @@ module Enigma where
          | otherwise -> (mod26 (ol), mod26 (om+1), mod26 (or+1)) --right rotor need not be updated
     | otherwise = (mod26 ol, mod26 om, mod26(or+1)) -- only the right rotor needs to 
 
-{- offsetCharPos takes a character, the current offsets, and the middle/right rotors and returns the position
-  - where the offsetted letter is in the alphabet
--}
-  offsetCharPos :: Char -> Offsets -> Rotor -> Rotor -> Int
-  offsetCharPos char offsets rm rr = alphaPos (offsetChar char rightmostOffset)
-    where
-      rightmostOffset = thd (updateOffsets offsets rm rr)
-
 {- encodeChar is my updated function for encoding characters, it takes a character and an array of the rotors and their given offsets
  - to recurse through and return the encoded character
 -}
@@ -87,16 +97,15 @@ module Enigma where
     | first == char = second
     | second == char = first
     | otherwise = reflectChar char xs
-    
-  encodeString :: String -> Offsets -> (Rotor, Rotor, Rotor) -> String
-  encodeString "" _ _ = "INPUT WAS EMPTY"
-  encodeString (x : xs) (oL, oM, oR) (rotorL, rotorM, rotorR) --recurse through chars in string
-    | xs == "" = [charEncodedFinal] -- when char is last in string, return just the encoded char
-    | otherwise = charEncodedFinal : (encodeString xs updatedOffsets (rotorL, rotorM, rotorR)) --append encoded chars to return string
-      where
-        reflectedChar = reflectChar (encodeChar x [(rotorL, oL), (rotorM, oM), (rotorR, oR)]) reflectorB --char encoded l->r and the reflected
-        charEncodedFinal = encodeCharReverse reflectedChar [(rotorR, oR), (rotorM, oM), (rotorL, oL)]
-        updatedOffsets = updateOffsets (oL, oM, oR) rotorM rotorR
+
+{- reflectChar takes a character and a reflector and returns the characters reflected partner-}
+  steckerChar :: Char -> Stecker -> Char
+  steckerChar char [] = char
+  steckerChar char ((first, second):xs) 
+    | first == char = second
+    | second == char = first
+    | otherwise = steckerChar char xs
+
 
 {- Part 2: Finding the Longest Menu -}
 
@@ -148,14 +157,11 @@ module Enigma where
               ('C','H'),
               ('D','Q'),
               ('E','S'),
-              ('F','S'),
-              ('G','L'),
-              ('I','P'),
-              ('J','X'),
-              ('K','N'),
-              ('M','O'),
               ('T','Z'),
-              ('V','W')]
+              ('G','N'),
+              ('I','X'),
+              ('J','V'),
+              ('K','P')]
 
   {- alphaPos: given an uppercase letter, returns its index in the alphabet
      ('A' = position 0; 'Z' = position 25)
@@ -170,9 +176,3 @@ module Enigma where
 
   mod26 :: Int -> Int
   mod26 x  = x `mod` 26
-
-  thd :: (Int, Int, Int) -> Int
-  thd (a, b, c) = c
-
-  reverseOffsets :: Offsets -> Offsets
-  reverseOffsets (a, b, c) = (a * (-1), b * (-1), c * (-1))
