@@ -33,9 +33,6 @@ module Enigma where
   offsetChar :: Char -> Int -> Char
   offsetChar char offset = int2let (((alphaPos char) + offset) `mod` 26)
 
-  offsetCharOnRotor :: Char -> Int -> Rotor -> Char
-  offsetCharOnRotor char offset rotor = getMappedLetter rotor (mod ((getLetterFromPos (fst rotor) char) - offset) 26)
-
 {- getMappedLetter takes a rotor and returns the letter at the given position in the rotor sequence -}
   getMappedLetter :: Rotor -> Int -> Char
   getMappedLetter rotor position = fst(rotor) !! position
@@ -66,28 +63,22 @@ module Enigma where
     where
       rightmostOffset = thd (updateOffsets offsets rm rr)
 
-{- encodeCharGoingLeft takes a character, current offsets, all 3 rotors, and returns a char based on it going through all of
- - the rotors one time.
--}
-  encodeCharGoingLeft :: Char -> Offsets -> Rotor -> Rotor -> Rotor -> Char
-  encodeCharGoingLeft char offsets rl rm rr = getMappedLetter rl (alphaPos (getMappedLetter rm (alphaPos (getMappedLetter rr (offsetCharPos char offsets rm rr))))) -- gets offset of right rotor, offsets char by that amount, passes through rotor
-
 {- encodeChar is my updated function for encoding characters, it takes a character and an array of the rotors and their given offsets
  - to recurse through and return the encoded character
 -}
   encodeChar :: Char -> [(Rotor, Int)] -> Char
   encodeChar char [] = '?'
   encodeChar char ((rotor, offset) : xs)
-    | xs == [] = getMappedLetter rotor (alphaPos (offsetChar char offset))
+    | xs == [] = offsetChar (getMappedLetter rotor (alphaPos (offsetChar char offset))) (-offset)
     | otherwise = encodeChar (encodeChar char xs) [(rotor, offset)]
 
   encodeCharReverse :: Char -> [(Rotor, Int)] -> Char
   encodeCharReverse char [] = '?'
   encodeCharReverse char ((rotor, offset) : xs) --given the character to encode and the rotor+accompanying offset on which to do it
-    | xs == [] = foobar --once has reached end of rotor array (3rd rotor) get whichever letter is mapped to offset char on the given rotor 
+    | xs == [] = reverseEncodedChar --once has reached end of rotor array (3rd rotor) get whichever letter is mapped to offset char on the given rotor 
     | otherwise = encodeCharReverse (encodeCharReverse char xs) [(rotor, offset)]
       where 
-        foobar = int2let (getLetterFromPos (fst(rotor)) (offsetCharOnRotor char offset rotor))
+        reverseEncodedChar = offsetChar (int2let (getLetterFromPos (fst(rotor)) (offsetChar char offset))) (-offset)
 
 {- reflectChar takes a character and a reflector and returns the characters reflected partner-}
   reflectChar :: Char -> Reflector -> Char
@@ -98,17 +89,14 @@ module Enigma where
     | otherwise = reflectChar char xs
     
   encodeString :: String -> Offsets -> (Rotor, Rotor, Rotor) -> String
-  encodeString "" _ _ = "jkojk"
-  encodeString (x : xs) (oL, oM, oR) (rotorL, rotorM, rotorR)
-    | xs == "" = [charEncodedFinal]
-    | otherwise = charEncodedFinal : (encodeString xs updatedOffsets (rotorL, rotorM, rotorR))
+  encodeString "" _ _ = "INPUT WAS EMPTY"
+  encodeString (x : xs) (oL, oM, oR) (rotorL, rotorM, rotorR) --recurse through chars in string
+    | xs == "" = [charEncodedFinal] -- when char is last in string, return just the encoded char
+    | otherwise = charEncodedFinal : (encodeString xs updatedOffsets (rotorL, rotorM, rotorR)) --append encoded chars to return string
       where
         reflectedChar = reflectChar (encodeChar x [(rotorL, oL), (rotorM, oM), (rotorR, oR)]) reflectorB --char encoded l->r and the reflected
-        charEncodedFinal = encodeCharReverse rROeflectedChar [(rotorR, oR), (rotorM, oM), (rotorL, oL)]
+        charEncodedFinal = encodeCharReverse reflectedChar [(rotorR, oR), (rotorM, oM), (rotorL, oL)]
         updatedOffsets = updateOffsets (oL, oM, oR) rotorM rotorR
-
-
-    
 
 {- Part 2: Finding the Longest Menu -}
 
@@ -146,6 +134,20 @@ module Enigma where
               ('C','U'),
               ('D','H'),
               ('E','Q'),
+              ('F','S'),
+              ('G','L'),
+              ('I','P'),
+              ('J','X'),
+              ('K','N'),
+              ('M','O'),
+              ('T','Z'),
+              ('V','W')]
+
+  steckerA = [('A','R'),
+              ('B','U'),
+              ('C','H'),
+              ('D','Q'),
+              ('E','S'),
               ('F','S'),
               ('G','L'),
               ('I','P'),
