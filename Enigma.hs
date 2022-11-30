@@ -34,7 +34,7 @@ module Enigma where
     | xs == "" = [charEncodedFinal]-- when char is last in string, return just the encoded char
     | otherwise = charEncodedFinal : (encodeMessage xs (SimpleEnigma rotorL rotorM rotorR reflector (uOL, uOM, uOR))) --append encoded chars to return string
       where
-        steckeredChar = steckerChar x stecker
+        steckeredChar = steckerChar x stecker --stecker character as it is input 
         reflectedChar = reflectChar (encodeChar steckeredChar [(rotorL, uOL), (rotorM, uOM), (rotorR, uOR)]) reflector --char encoded l->r and the reflected
         charEncodedFinal = steckerChar (encodeCharReverse reflectedChar [(rotorR, uOR), (rotorM, uOM), (rotorL, uOL)]) stecker
         (uOL, uOM, uOR) = updateOffsets (oL, oM, oR) rotorM rotorR
@@ -109,11 +109,36 @@ module Enigma where
 
 {- Part 2: Finding the Longest Menu -}
 
-  type Menu = [(Char, Integer)] -- the supplied type is not correct; fix it!
-  type Crib = String -- the supplied type is not correct; fix it!
+  type Menu = [Integer]
+  type Crib = (String, String)
+  type IndexedCrib = (Int, (Char, Char))
+  type IndexedCribList = [(Int, (Char, Char))]
+
 
   longestMenu :: Crib -> Menu
-  longestMenu _ = [('a',1)]
+  longestMenu _ = [1]
+  
+  zipWithIndexes :: Crib -> IndexedCribList
+  zipWithIndexes (plain, cypher) = zip [0..] (zip plain cypher)
+
+  getBranches:: IndexedCribList -> IndexedCrib -> [IndexedCribList]
+  getBranches formattedCrib pairSearchingFor
+    | possibleBranches == [] = [[pairSearchingFor]]
+    | otherwise = (map (\m -> pairSearchingFor : m) (exploreSubBranches formattedCrib possibleBranches))
+    where
+      index = fst(pairSearchingFor)
+      charSearchingFor = snd(snd(pairSearchingFor))
+      possibleBranches = filter (\(i, (p, c)) -> p == charSearchingFor) formattedCrib -- gives possible branches to go down by filtering for letter to go down 
+
+  exploreSubBranches:: IndexedCribList -> IndexedCribList -> [IndexedCribList] --if there is more than one i have to explore the sub branches
+  exploreSubBranches _ [] = []
+  exploreSubBranches formattedCrib (currentBranch: branchesToExplore) = (getBranches filteredCrib currentBranch) ++ exploreSubBranches filteredCrib branchesToExplore --at the end, on the last branch, we traverse just that branch
+      where
+        currentIndex = fst(currentBranch)
+        filteredCrib = filter (\(i, (p, c)) -> i /= currentIndex) formattedCrib
+
+  crib1 = ("WETTERVORHERSAGEBISKAYA","RWIVTYRESXBFOGKUHQBAISE")
+
 
 {- Part 3: Simulating the Bombe -}
   
