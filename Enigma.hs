@@ -7,6 +7,7 @@ module Enigma where
   import Data.Char  -- to use functions on characters
   import Data.Maybe -- breakEnigma uses Maybe type
   import Data.List
+  import Data.Function
   -- add extra imports if needed, but only standard library functions!
 
 {- Part 1: Simulation of the Enigma -}
@@ -109,14 +110,16 @@ module Enigma where
 
 {- Part 2: Finding the Longest Menu -}
 
-  type Menu = [Integer]
+  type Menu = [Int]
   type Crib = (String, String)
   type IndexedCrib = (Int, (Char, Char))
   type IndexedCribList = [(Int, (Char, Char))]
 
 
-  longestMenu :: Crib -> Menu
-  longestMenu _ = [1]
+  longestMenu :: Crib -> Int -> [Menu]
+  longestMenu crib startingPos = longest $ convertToMenuList $ getBranches (zipWithIndexes crib) startingIndexedCrib
+    where
+      startingIndexedCrib = (zipWithIndexes crib) !! startingPos
   
   zipWithIndexes :: Crib -> IndexedCribList
   zipWithIndexes (plain, cypher) = zip [0..] (zip plain cypher)
@@ -124,18 +127,41 @@ module Enigma where
   getBranches:: IndexedCribList -> IndexedCrib -> [IndexedCribList]
   getBranches formattedCrib pairSearchingFor
     | possibleBranches == [] = [[pairSearchingFor]]
-    | otherwise = (map (\m -> pairSearchingFor : m) (exploreSubBranches formattedCrib possibleBranches))
+    | otherwise = (map (\subBranches -> pairSearchingFor : subBranches) (exploreSubBranches filteredCrib possibleBranches))
     where
       index = fst(pairSearchingFor)
       charSearchingFor = snd(snd(pairSearchingFor))
       possibleBranches = filter (\(i, (p, c)) -> p == charSearchingFor) formattedCrib -- gives possible branches to go down by filtering for letter to go down 
+      filteredCrib = filter (\(i, (p, c)) -> i /= index) formattedCrib -- gives possible branches to go down by filtering for letter to go down 
 
   exploreSubBranches:: IndexedCribList -> IndexedCribList -> [IndexedCribList] --if there is more than one i have to explore the sub branches
   exploreSubBranches _ [] = []
-  exploreSubBranches formattedCrib (currentBranch: branchesToExplore) = (getBranches filteredCrib currentBranch) ++ exploreSubBranches filteredCrib branchesToExplore --at the end, on the last branch, we traverse just that branch
+  exploreSubBranches formattedCrib (currentBranch: branchesToExplore) = (getBranches formattedCrib currentBranch) ++ exploreSubBranches formattedCrib branchesToExplore --at the end, on the last branch, we traverse just that branch
       where
         currentIndex = fst(currentBranch)
         filteredCrib = filter (\(i, (p, c)) -> i /= currentIndex) formattedCrib
+
+  convertToMenuList:: [IndexedCribList] -> [Menu]
+  convertToMenuList [] = []
+  convertToMenuList (head : xs) 
+    | xs == [] = [convertToMenu head]
+    | otherwise = [convertToMenu head] ++ convertToMenuList xs
+
+  convertToMenu:: IndexedCribList -> Menu
+  convertToMenu [] = []
+  convertToMenu ((i, _) : xs) 
+    | xs == [] = [i]
+    | otherwise = i : convertToMenu xs
+
+  -- getLongestMenu:: [Menu] -> [Menu]
+  -- getLongestMenu longest (x:y:list) = longest $ (if length x < length y then y else x) : list
+
+  longest:: [Menu] -> [Menu]
+  longest [] = []
+  longest menus = filter (\menu -> length menu == longestLength) menus
+    where
+      longestLength = fst $ maximum (map (\x -> (length x, x)) menus)
+
 
   crib1 = ("WETTERVORHERSAGEBISKAYA","RWIVTYRESXBFOGKUHQBAISE")
 
