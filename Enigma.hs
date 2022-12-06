@@ -111,19 +111,32 @@ module Enigma where
 {- Part 2: Finding the Longest Menu -}
 
   type Menu = [Int]
-  type Crib = (String, String)
+  type Crib = [(Char, Char)]
   type IndexedCrib = (Int, (Char, Char))
   type IndexedCribList = [(Int, (Char, Char))]
 
+{- longestMenu takes a crib and a starting position, it calls getBranches which, through recursion, returns a list of all possible menus
+- in the form of indexedCribs. It then converts them to actual menu types and returns the longest ones 
+-}
+  longestMenu :: Crib -> Menu
+  longestMenu crib = head $ longest $ (longestMenuFromPoint crib ((length crib) -1))
+  
 
-  longestMenu :: Crib -> Int -> [Menu]
-  longestMenu crib startingPos = longest $ convertToMenuList $ getBranches (zipWithIndexes crib) startingIndexedCrib
+  longestMenuFromPoint:: Crib -> Int -> [Menu]
+  longestMenuFromPoint crib startingPos
+    | startingPos == 0 = [head $ longest $ convertToMenuList $ getBranches (zipWithIndexes crib) startingIndexedCrib]
+    | otherwise = (head $ longest $ convertToMenuList $ getBranches (zipWithIndexes crib) startingIndexedCrib) : (longestMenuFromPoint crib (startingPos-1))
     where
       startingIndexedCrib = (zipWithIndexes crib) !! startingPos
-  
-  zipWithIndexes :: Crib -> IndexedCribList
-  zipWithIndexes (plain, cypher) = zip [0..] (zip plain cypher)
 
+{- zipWithIndexes takes a crib and returns that same crib in the form of an indexed crib list, making it
+  - easier to work with
+-}
+  zipWithIndexes :: Crib -> IndexedCribList
+  zipWithIndexes crib = zip [0..] crib
+{- getBranches takes an IndexedCribList and an IndexedCrib and gets all possible branches it can go to,
+ - it then explores all sub-branches and maps the current head to a list of all possible sub branches
+-}
   getBranches:: IndexedCribList -> IndexedCrib -> [IndexedCribList]
   getBranches formattedCrib pairSearchingFor
     | possibleBranches == [] = [[pairSearchingFor]]
@@ -134,36 +147,43 @@ module Enigma where
       possibleBranches = filter (\(i, (p, c)) -> p == charSearchingFor) formattedCrib -- gives possible branches to go down by filtering for letter to go down 
       filteredCrib = filter (\(i, (p, c)) -> i /= index) formattedCrib -- gives possible branches to go down by filtering for letter to go down 
 
-  exploreSubBranches:: IndexedCribList -> IndexedCribList -> [IndexedCribList] --if there is more than one i have to explore the sub branches
-  exploreSubBranches _ [] = []
+{- exploreSubBranches takes a list of IndexedCribs and uses recursion to get all the branches of the every IndexedCrib in the list 
+-}
+  exploreSubBranches:: IndexedCribList -> IndexedCribList -> [IndexedCribList] 
+  exploreSubBranches _ [] = [] --if there is more than 0, sub branches have to be explored
   exploreSubBranches formattedCrib (currentBranch: branchesToExplore) = (getBranches formattedCrib currentBranch) ++ exploreSubBranches formattedCrib branchesToExplore --at the end, on the last branch, we traverse just that branch
       where
         currentIndex = fst(currentBranch)
-        filteredCrib = filter (\(i, (p, c)) -> i /= currentIndex) formattedCrib
 
+{- Because my two recursive functions return lists of IndexedCribLists, rather than lists of lists of ints, convertToMenuList is needed
+ - in order to return the correct output for getLongestMenu. It recurses through the lists in the list and turns each one to a Menu
+-}
   convertToMenuList:: [IndexedCribList] -> [Menu]
   convertToMenuList [] = []
   convertToMenuList (head : xs) 
     | xs == [] = [convertToMenu head]
     | otherwise = [convertToMenu head] ++ convertToMenuList xs
 
+{- convertToMenu takes an IndexedCribList and recurses through it to make a Menu
+-}
   convertToMenu:: IndexedCribList -> Menu
   convertToMenu [] = []
   convertToMenu ((i, _) : xs) 
     | xs == [] = [i]
     | otherwise = i : convertToMenu xs
-
-  -- getLongestMenu:: [Menu] -> [Menu]
-  -- getLongestMenu longest (x:y:list) = longest $ (if length x < length y then y else x) : list
-
+  
+{- longest takes a list of Menus (a list of lists), finds the longest length, and returns a list of all lists of that longest length
+-}
   longest:: [Menu] -> [Menu]
   longest [] = []
   longest menus = filter (\menu -> length menu == longestLength) menus
     where
       longestLength = fst $ maximum (map (\x -> (length x, x)) menus)
 
-
-  crib1 = ("WETTERVORHERSAGEBISKAYA","RWIVTYRESXBFOGKUHQBAISE")
+{- crib1 is used for testing -}
+  -- crib1 = ("WETTERVORHERSAGEBISKAYA","RWIVTYRESXBFOGKUHQBAISE")
+  crib5 = "WETTERVORHERSAGEBISKAYA"
+  message5 = "RWIVTYRESXBFOGKUHQBAISE"
 
 
 {- Part 3: Simulating the Bombe -}
@@ -213,6 +233,8 @@ module Enigma where
               ('I','X'),
               ('J','V'),
               ('K','P')]
+
+  plugboard = [('F','T'),('D','U'),('V','A'),('K','W'),('H','Z'),('I','X')] 
 
   {- alphaPos: given an uppercase letter, returns its index in the alphabet
      ('A' = position 0; 'Z' = position 25)
