@@ -1,14 +1,16 @@
-{-- Stub for the grading assignment. Fill it in, making sure you use good
- -- functional style, and add comments (including replacing those that are
- -- already here).
+{--
+ - Function Programming Grading Assignment, COM2108
+ - Jack Marchant (acd21jm),  2022
+ - This project is part of the grading assignment for course COM2108. It is made of 3 parts,
+ - writing an enigma machine that can encode strings of capital letters, finding the longest menu 
+ - given a crib, and reconstructing the bombe.
 --}
 
 module Enigma where
-  import Data.Char  -- to use functions on characters
-  import Data.Maybe -- breakEnigma uses Maybe type
+  import Data.Char 
+  import Data.Maybe
   import Data.List
   import Data.Function
-  -- add extra imports if needed, but only standard library functions!
 
 {- Part 1: Simulation of the Enigma -}
 
@@ -21,30 +23,28 @@ module Enigma where
                 | SteckeredEnigma Rotor Rotor Rotor Reflector Offsets Stecker
 
   encodeMessage :: String -> Enigma -> String
-  encodeMessage "" _ = "" -- you need to complete this!
+  encodeMessage "" _ = ""
   --Unsteckered
-  encodeMessage (x : xs) (SimpleEnigma rotorL rotorM rotorR reflector (oL, oM, oR)) --recurse through chars in string
-    | xs == "" = [charEncodedFinal] -- when char is last in string, return just the encoded char
-    | otherwise = charEncodedFinal : (encodeMessage xs (SimpleEnigma rotorL rotorM rotorR reflector (uOL, uOM, uOR))) --append encoded chars to return string
+  encodeMessage (x : xs) (SimpleEnigma rotorR rotorM rotorL reflector (oL, oM, oR)) --recurse through chars in string
+    | isAlpha x = case() of
+      () | xs == "" -> [charEncodedFinal]
+         | otherwise -> charEncodedFinal : (encodeMessage xs (SimpleEnigma rotorR rotorM rotorL reflector (uOL, uOM, uOR))) --append encoded chars to return string
+    | otherwise = encodeMessage xs (SimpleEnigma rotorR rotorM rotorL reflector (oL, oM, oR)) -- if not alphachar, skip
       where
-        reflectedChar = reflectChar (encodeChar x [(rotorL, uOL), (rotorM, uOM), (rotorR, uOR)]) reflector --char encoded l->r and the reflected
-        charEncodedFinal = encodeCharReverse reflectedChar [(rotorR, uOR), (rotorM, uOM), (rotorL, uOL)]
+        reflectedChar = reflectChar (encodeChar (toUpper x) [(rotorL, uOL), (rotorM, uOM), (rotorR, uOR)]) reflector --char encoded R->L and the reflected
+        charEncodedFinal = encodeCharReverse reflectedChar [(rotorR, uOR), (rotorM, uOM), (rotorL, uOL)] --char encoded L->R
         (uOL, uOM, uOR) = updateOffsets (oL, oM, oR) rotorM rotorR
   --Steckered
-  encodeMessage (x : xs) (SteckeredEnigma rotorL rotorM rotorR reflector (oL, oM, oR) stecker)
-    | xs == "" = [charEncodedFinal]-- when char is last in string, return just the encoded char
-    | otherwise = charEncodedFinal : (encodeMessage xs (SimpleEnigma rotorL rotorM rotorR reflector (uOL, uOM, uOR))) --append encoded chars to return string
+  encodeMessage (x : xs) (SteckeredEnigma rotorR rotorM rotorL reflector (oL, oM, oR) stecker)
+    | isAlpha x = case() of
+      () | xs == "" -> [charEncodedFinal]
+         | otherwise -> charEncodedFinal : (encodeMessage xs (SteckeredEnigma rotorR rotorM rotorL reflector (uOL, uOM, uOR) stecker)) --append encoded chars to return string
+    | otherwise = encodeMessage xs (SteckeredEnigma rotorR rotorM rotorL reflector (oL, oM, oR) stecker)
       where
-        steckeredChar = steckerChar x stecker --stecker character as it is input 
-        reflectedChar = reflectChar (encodeChar steckeredChar [(rotorL, uOL), (rotorM, uOM), (rotorR, uOR)]) reflector --char encoded l->r and the reflected
+        steckeredChar = steckerChar (toUpper x) stecker --stecker character as it is input 
+        reflectedChar = reflectChar (encodeChar steckeredChar [(rotorL, uOL), (rotorM, uOM), (rotorR, uOR)]) reflector
         charEncodedFinal = steckerChar (encodeCharReverse reflectedChar [(rotorR, uOR), (rotorM, uOM), (rotorL, uOL)]) stecker
         (uOL, uOM, uOR) = updateOffsets (oL, oM, oR) rotorM rotorR
-
-
-{- You will need to add many more functions. Remember, design it carefully
-   - and keep it simple! If things are feeling complicated, step back from your
-   - code and think about the design again.
-   -}
 
 {- offsetChar takes a character and an offset and returns a character offset by the given amount,
    - can also take a negative offset to go in reverse direction
@@ -74,7 +74,7 @@ module Enigma where
          | otherwise -> (mod26 (ol), mod26 (om+1), mod26 (or+1)) --right rotor need not be updated
     | otherwise = (mod26 ol, mod26 om, mod26(or+1)) -- only the right rotor needs to 
 
-{- encodeChar is my updated function for encoding characters, it takes a character and an array of the rotors and their given offsets
+{- encodeChar takes a character and an array of the rotors and their given offsets
  - to recurse through and return the encoded character
 -}
   encodeChar :: Char -> [(Rotor, Int)] -> Char
@@ -113,15 +113,19 @@ module Enigma where
   type Menu = [Int]
   type Crib = [(Char, Char)]
   type IndexedCrib = (Int, (Char, Char))
-  type IndexedCribList = [(Int, (Char, Char))]
+  type IndexedCribList = [IndexedCrib]
 
-{- longestMenu takes a crib and a starting position, it calls getBranches which, through recursion, returns a list of all possible menus
-- in the form of indexedCribs. It then converts them to actual menu types and returns the longest ones 
+{- longestMenu calls longestMenuFromPoint starting from the end of the crib, which will
+ - recurse its way down to the beginning of the crib. At this point, there will be a list
+ - of a longest menu from each point, taking the head of the longest from that gives 1 longestMenu
 -}
   longestMenu :: Crib -> Menu
   longestMenu crib = head $ longest $ (longestMenuFromPoint crib ((length crib) -1))
   
-
+{- longestMenuFromPoint takes a crib and a starting position, it calls getBranches which, through recursion,
+ - returns a list of all possible menus in the form of indexedCribs.
+ - It then converts them to actual menu types and returns the longest ones
+-}
   longestMenuFromPoint:: Crib -> Int -> [Menu]
   longestMenuFromPoint crib startingPos
     | startingPos == 0 = [head $ longest $ convertToMenuList $ getBranches (zipWithIndexes crib) startingIndexedCrib]
@@ -129,11 +133,9 @@ module Enigma where
     where
       startingIndexedCrib = (zipWithIndexes crib) !! startingPos
 
-{- zipWithIndexes takes a crib and returns that same crib in the form of an indexed crib list, making it
-  - easier to work with
--}
   zipWithIndexes :: Crib -> IndexedCribList
   zipWithIndexes crib = zip [0..] crib
+
 {- getBranches takes an IndexedCribList and an IndexedCrib and gets all possible branches it can go to,
  - it then explores all sub-branches and maps the current head to a list of all possible sub branches
 -}
@@ -172,19 +174,14 @@ module Enigma where
     | xs == [] = [i]
     | otherwise = i : convertToMenu xs
   
-{- longest takes a list of Menus (a list of lists), finds the longest length, and returns a list of all lists of that longest length
+{- longest takes a list of Menus (a list of lists), finds the longest length, and returns
+ - a list of all lists of that longest length
 -}
   longest:: [Menu] -> [Menu]
   longest [] = []
   longest menus = filter (\menu -> length menu == longestLength) menus
     where
       longestLength = fst $ maximum (map (\x -> (length x, x)) menus)
-
-{- crib1 is used for testing -}
-  -- crib1 = ("WETTERVORHERSAGEBISKAYA","RWIVTYRESXBFOGKUHQBAISE")
-  crib5 = "WETTERVORHERSAGEBISKAYA"
-  message5 = "RWIVTYRESXBFOGKUHQBAISE"
-
 
 {- Part 3: Simulating the Bombe -}
   
@@ -193,11 +190,6 @@ module Enigma where
 
 {- Useful definitions and functions -}
 
-   -- substitution cyphers for the Enigma rotors
-   -- as pairs of (wirings, knock-on position)
-   -- knock-on position is where it will cause the next left wheel to
-   -- advance when it moves past this position
- 
         --"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   rotor1=("EKMFLGDQVZNTOWYHXUSPAIBRCJ",17::Int)
   rotor2=("AJDKSIRUXBLHWTMCQGZNPYFVOE",5::Int)
@@ -205,10 +197,6 @@ module Enigma where
   rotor4=("ESOVPZJAYQUIRHXLNFTGKDCMWB",10::Int)
   rotor5=("VZBRGITYUPSDNHLXAWMJQOFECK",0::Int)
 
-  {- the standard Enigma reflector (Reflector B)
-    swapped A<->Y, B<->R, C<->U,D<->H, E<->Q, F<->S, G<->L, 
-            I<->P, J<->X, K<->N, M<->O, T<->Z,V<->W
-  -}
   reflectorB= [('A','Y'),
               ('B','R'),
               ('C','U'),
@@ -234,18 +222,17 @@ module Enigma where
               ('J','V'),
               ('K','P')]
 
-  plugboard = [('F','T'),('D','U'),('V','A'),('K','W'),('H','Z'),('I','X')] 
-
   {- alphaPos: given an uppercase letter, returns its index in the alphabet
      ('A' = position 0; 'Z' = position 25)
    -}
   alphaPos :: Char -> Int
   alphaPos c = (ord c) - ord 'A'
 {- int2let: given a integer, returns its corresponding letter
-     ('A' = position 0; 'Z' = position 25)
+     (0 = 'A'; 25 = 'Z')
    -}
   int2let :: Int -> Char
   int2let n = chr (ord 'A' + n)
 
+{- useful -}
   mod26 :: Int -> Int
   mod26 x  = x `mod` 26
