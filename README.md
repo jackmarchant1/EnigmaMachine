@@ -17,7 +17,7 @@ The main function to encode messages is `encodeMessage` which takes a string and
 
 ### British Bombe
 
-The British Bombe was a machine developed by Alan Turing and his team during World War II to help decipher Enigma-encrypted messages. The simulator of the bombe cannot be posted in this repository for reasons of academic integrity, however I give extensive time to the logic of how it would work in the Testing document also included in the repository.
+The British Bombe was a machine developed by Alan Turing and his team during World War II to help decipher Enigma-encrypted messages. The simulator of the bombe unfortunately cannot be posted in this repository for reasons of academic integrity, however I give extensive explanation to the logic of how it works in the Testing and Design document also included in the repository.
 
 ## How to Use
 
