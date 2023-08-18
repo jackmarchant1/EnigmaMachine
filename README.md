@@ -1,4 +1,4 @@
-# Enigma Machine and British Bombe Recreation in Haskell
+# Enigma Machine and Bombe Recreation in Haskell
 
 This repository contains Haskell implementations for simulating the Enigma machine and the British Bombe. Created by Jack Marchant in 2022 for a university course assignment.
 
